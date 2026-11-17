@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro Pessoal | Gestão Mensal & Holerite</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        .glass-nav {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Toast Notification Container (Substitui alert()) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Modal de Confirmação Customizado (Substitui confirm()) -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <div class="flex items-center gap-3 text-amber-500 mb-3">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                <h3 id="confirm-title" class="text-lg font-bold text-slate-900 dark:text-white">Confirmar Ação</h3>
+            </div>
+            <p id="confirm-message" class="text-sm text-slate-600 dark:text-slate-300 mb-6">Tem certeza que deseja continuar?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Cancelar</button>
+                <button id="confirm-ok" class="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Adicionar/Editar Lançamento -->
+    <div id="entry-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl my-8">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                <h3 id="modal-entry-title" class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Novo Lançamento</span>
+                </h3>
+                <button onclick="closeEntryModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="entry-form" class="space-y-4">
+                <input type="hidden" id="entry-id">
+                
+                <!-- Tipo: Receita ou Despesa -->
+                <div class="grid grid-cols-2 gap-3 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryType" value="expense" class="peer sr-only" checked onchange="toggleEntryTypeFields()">
+                        <div class="text-center py-2 px-3 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-rose-600 dark:peer-checked:text-rose-400 peer-checked:shadow-sm transition">
+                            Despesa / Conta
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryType" value="income" class="peer sr-only" onchange="toggleEntryTypeFields()">
+                        <div class="text-center py-2 px-3 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-emerald-600 dark:peer-checked:text-emerald-400 peer-checked:shadow-sm transition">
+                            Receita / Entrada
+                        </div>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Descrição</label>
+                    <input type="text" id="entry-name" required placeholder="Ex: Cartão Crédito, Salário Dia 05, Luz..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Valor (R$)</label>
+                        <input type="number" id="entry-amount" step="0.01" min="0" required placeholder="0,00" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Quinzena</label>
+                        <select id="entry-quinzena" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="1">1ª Quinzena (Dias 01 a 15)</option>
+                            <option value="2">2ª Quinzena (Dias 16 a 31)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div id="category-wrapper">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Categoria</label>
+                        <select id="entry-category" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="Moradia">Moradia / Apto</option>
+                            <option value="Cartões">Cartões de Crédito</option>
+                            <option value="Contas Fixas">Contas Fixas</option>
+                            <option value="Empréstimos">Empréstimos / Acordos</option>
+                            <option value="Veículo">Veículo / IPVA</option>
+                            <option value="Outros">Outros / Rateios</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Dia Venc./Rec.</label>
+                        <input type="number" id="entry-due" min="1" max="31" placeholder="Ex: 05" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Parcela / Obs</label>
+                        <input type="text" id="entry-installment" placeholder="Ex: 3/10 ou Fixo" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="entry-paid" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Já está pago / recebido</span>
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onclick="closeEntryModal()" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 transition">Salvar Lançamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Novo Mês -->
+    <div id="month-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                <h3 class="text-lg font-bold">Adicionar Novo Mês</h3>
+                <button onclick="closeMonthModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="new-month-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nome do Mês (Ex: Dezembro)</label>
+                    <input type="text" id="new-month-name" required placeholder="Dezembro" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Copiar estrutura fixa de:</label>
+                    <select id="copy-from-month" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="closeMonthModal()" class="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">Criar Mês</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- HEADER / NAVBAR FIXO -->
+    <header class="sticky top-0 z-40 bg-white/85 dark:bg-slate-950/85 glass-nav border-b border-slate-200/80 dark:border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+                <!-- Logo & Título -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white block leading-none">Finanças<span class="text-indigo-600 dark:text-indigo-400">Pro</span></span>
+                        <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400 hidden sm:block">Controle Completo & Holerite</span>
+                    </div>
+                </div>
+
+                <!-- Links de Navegação Onepage (Desktop) -->
+                <nav class="hidden lg:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                    <a href="#visao-geral" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 transition">Visão Geral</a>
+                    <a href="#fluxo-quinzenal" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 transition">Quinzenas</a>
+                    <a href="#lancamentos" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 transition">Contas & Receitas</a>
+                    <a href="#horas-extras" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 transition">HE & Holerite</a>
+                    <a href="#evolucao-anual" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 transition">Evolução Fev–Nov</a>
+                </nav>
+
+                <!-- Controles Globais (Exportar, Restaurar, Tema) -->
+                <div class="flex items-center gap-2">
+                    <button onclick="exportCSV()" title="Exportar Mês em CSV" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 text-xs font-semibold">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">CSV</span>
+                    </button>
+                    <button onclick="confirmResetData()" title="Restaurar Dados Originais da Planilha" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition flex items-center gap-1.5 text-xs font-semibold">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span class="hidden md:inline">Restaurar Excel</span>
+                    </button>
+                    <button onclick="toggleDarkMode()" id="theme-toggle" title="Alternar Tema Claro/Escuro" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
+                        <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- BARRA DE SELEÇÃO DE MÊS ATIVO -->
+    <div class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4 text-indigo-500"></i>
+                    Competência:
+                </span>
+                <!-- Abas rápidas de meses (scroll horizontal no mobile) -->
+                <div id="month-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 max-w-[75vw] sm:max-w-2xl no-scrollbar">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+            <div class="flex items-center gap-2 self-end sm:self-auto">
+                <button onclick="openMonthModal()" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition">
+                    <i data-lucide="calendar-plus" class="w-3.5 h-3.5 text-indigo-500"></i>
+                    Novo Mês
+                </button>
+                <button onclick="openEntryModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/20 flex items-center gap-1.5 transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Lançar Item
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL ONEPAGE -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- SEÇÃO 1: VISÃO GERAL & KPIs -->
+        <section id="visao-geral" class="scroll-mt-24 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold mb-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                        Resumo Consolidado • <span id="header-month-label">Novembro</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Painel Financeiro Mensal</h1>
+                </div>
+                <p id="month-note" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic">Baseado na planilha Controle_de_Gastos_Completo.xlsx</p>
+            </div>
+
+            <!-- Grid de 4 KPIs -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <!-- Card 1: Renda Total -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Renda Total</span>
+                        <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="trending-up" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-income" class="text-2xl font-extrabold text-slate-900 dark:text-white">R$ 0,00</div>
+                    <div class="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>Recebido: <strong id="kpi-income-paid" class="text-emerald-600 dark:text-emerald-400">R$ 0,00</strong></span>
+                        <span id="kpi-income-count">0 fontes</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Total de Gastos -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total de Gastos</span>
+                        <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                            <i data-lucide="trending-down" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-expense" class="text-2xl font-extrabold text-slate-900 dark:text-white">R$ 0,00</div>
+                    <div class="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>Pago: <strong id="kpi-expense-paid" class="text-slate-700 dark:text-slate-300">R$ 0,00</strong></span>
+                        <span>Falta: <strong id="kpi-expense-pending" class="text-amber-600 dark:text-amber-400">R$ 0,00</strong></span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Saldo / Sobra Líquida -->
+                <div id="kpi-balance-card" class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Sobra / Saldo Final</span>
+                        <div id="kpi-balance-icon" class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                            <i data-lucide="piggy-bank" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-balance" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">R$ 0,00</div>
+                    <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span id="kpi-balance-status">Superávit previsto no mês</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Comprometimento da Renda -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Comprometimento</span>
+                        <div class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                            <i data-lucide="pie-chart" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                        <div id="kpi-commitment" class="text-2xl font-extrabold text-slate-900 dark:text-white">0%</div>
+                        <span id="kpi-commitment-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Saudável</span>
+                    </div>
+                    <!-- Barra de Progresso -->
+                    <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
+                        <div id="kpi-commitment-bar" class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 2: FLUXO QUINZENAL (1ª QUINZENA vs 2ª QUINZENA) & DISTRIBUIÇÃO -->
+        <section id="fluxo-quinzenal" class="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Fluxo 1ª e 2ª Quinzena (2 colunas no desktop) -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <i data-lucide="split" class="w-5 h-5 text-indigo-600"></i>
+                                Fluxo de Caixa por Quinzena
+                            </h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Divisão fiel da planilha: Adiantamento (Dia 05) vs. Pagamento (Dia 20)</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Card 1ª Quinzena -->
+                        <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-700/70 pb-2.5">
+                                <span class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                    1ª Quinzena (Dias 01–15)
+                                </span>
+                                <span class="text-[11px] font-medium text-slate-500">Salário Dia 05 + Aluguel</span>
+                            </div>
+                            <div class="space-y-1.5 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500 dark:text-slate-400">Entradas Previstas:</span>
+                                    <span id="q1-income" class="font-semibold text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500 dark:text-slate-400">Saídas / Contas:</span>
+                                    <span id="q1-expense" class="font-semibold text-rose-600 dark:text-rose-400">R$ 0,00</span>
+                                </div>
+                                <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/70 flex justify-between items-center">
+                                    <span class="font-bold text-slate-700 dark:text-slate-200">Saldo 1ª Quinzena:</span>
+                                    <span id="q1-balance" class="font-extrabold text-base text-slate-900 dark:text-white">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2ª Quinzena -->
+                        <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-700/70 pb-2.5">
+                                <span class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>
+                                    2ª Quinzena (Dias 16–31)
+                                </span>
+                                <span class="text-[11px] font-medium text-slate-500">Salário Dia 20 + Extras</span>
+                            </div>
+                            <div class="space-y-1.5 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500 dark:text-slate-400">Entradas Previstas:</span>
+                                    <span id="q2-income" class="font-semibold text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500 dark:text-slate-400">Saídas / Contas:</span>
+                                    <span id="q2-expense" class="font-semibold text-rose-600 dark:text-rose-400">R$ 0,00</span>
+                                </div>
+                                <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/70 flex justify-between items-center">
+                                    <span class="font-bold text-slate-700 dark:text-slate-200">Saldo 2ª Quinzena:</span>
+                                    <span id="q2-balance" class="font-extrabold text-base text-slate-900 dark:text-white">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de Status de Quitação das Contas do Mês -->
+                <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-xs mb-1.5">
+                        <span class="font-semibold text-slate-600 dark:text-slate-300">Progresso de Pagamento das Contas do Mês</span>
+                        <span id="paid-progress-text" class="font-bold text-indigo-600 dark:text-indigo-400">0 de 0 contas pagas (0%)</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div id="paid-progress-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico de Rosca: Gastos por Categoria -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-1">Gastos por Categoria</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Distribuição proporcional em <span id="cat-month-name">Novembro</span></p>
+                <div class="relative flex-1 min-h-[210px] flex items-center justify-center">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 3: LANÇAMENTOS INTERATIVOS (RECEITAS E DESPESAS) -->
+        <section id="lancamentos" class="scroll-mt-24 space-y-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="list-checks" class="w-5 h-5 text-indigo-600"></i>
+                        Detalhamento de Receitas e Contas
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Clique no status para marcar como Pago/Recebido ou edite os valores diretamente</p>
+                </div>
+
+                <!-- Filtros Interativos -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="filter-quinzena" onchange="renderEntries()" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Todas as Quinzenas</option>
+                        <option value="1">1ª Quinzena (Dia 05)</option>
+                        <option value="2">2ª Quinzena (Dia 20)</option>
+                    </select>
+                    <select id="filter-status" onchange="renderEntries()" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Todos os Status</option>
+                        <option value="paid">Pagos / Recebidos</option>
+                        <option value="pending">Pendentes</option>
+                    </select>
+                    <button onclick="openEntryModal()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Adicionar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Lado a Lado: Receitas vs Despesas -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Coluna Receitas (5 colunas) -->
+                <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+                    <div class="px-5 py-4 bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Fontes de Renda & Entradas</h3>
+                        </div>
+                        <button onclick="openEntryModal('income')" class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Nova Renda
+                        </button>
+                    </div>
+                    <div id="income-list" class="divide-y divide-slate-100 dark:divide-slate-800/80 flex-1">
+                        <!-- Renderizado via JS -->
+                    </div>
+                </div>
+
+                <!-- Coluna Despesas (7 colunas) -->
+                <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+                    <div class="px-5 py-4 bg-rose-50/60 dark:bg-rose-950/20 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Contas a Pagar & Parcelamentos</h3>
+                        </div>
+                        <button onclick="openEntryModal('expense')" class="text-xs font-semibold text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Nova Conta
+                        </button>
+                    </div>
+                    <div id="expense-list" class="divide-y divide-slate-100 dark:divide-slate-800/80 flex-1">
+                        <!-- Renderizado via JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 4: CONTROLE DE HORAS EXTRAS (HE) & SIMULADOR DE HOLERITE -->
+        <section id="horas-extras" class="scroll-mt-24 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Módulo Trabalhista</span>
+                    <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Controle de Horas Extras & Simulador de Holerite</h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Reprodução exata da aba <code class="px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 font-mono">SIMULADOR HOLERITE</code> e apontamentos de HE</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Apontamento de Horas Extras (5 colunas) -->
+                <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                    <i data-lucide="clock" class="w-5 h-5 text-amber-500"></i>
+                                    Apontamento de HE
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Histórico: Ago (34h), Set (17h), Out (17h), Nov (30h)</p>
+                            </div>
+                            <span id="he-total-badge" class="px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-xs font-extrabold">30h Total</span>
+                        </div>
+
+                        <!-- Formulário Rápido de Apontamento HE -->
+                        <form id="he-form" class="grid grid-cols-12 gap-2 mb-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                            <div class="col-span-5">
+                                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Data</label>
+                                <input type="text" id="he-date" required placeholder="Ex: 15/11" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="col-span-4">
+                                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Horas</label>
+                                <input type="number" id="he-hours" step="0.5" min="0.5" required placeholder="Ex: 8" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="col-span-3 flex items-end">
+                                <button type="submit" class="w-full py-1.5 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Tabela de Dias Trabalhados -->
+                        <div class="max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded-xl">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 sticky top-0">
+                                    <tr>
+                                        <th class="py-2.5 px-3 font-semibold">Data</th>
+                                        <th class="py-2.5 px-3 font-semibold">Qtd. Horas</th>
+                                        <th class="py-2.5 px-3 font-semibold">Status</th>
+                                        <th class="py-2.5 px-3 text-right font-semibold">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="he-list" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <!-- Renderizado via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Mini Resumo Histórico de HE da Planilha -->
+                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-4 gap-2 text-center">
+                        <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                            <span class="block text-[10px] text-slate-400 uppercase font-bold">Ago</span>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">34h</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                            <span class="block text-[10px] text-slate-400 uppercase font-bold">Set</span>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">17h</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                            <span class="block text-[10px] text-slate-400 uppercase font-bold">Out</span>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">17h</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60">
+                            <span class="block text-[10px] text-indigo-500 uppercase font-bold">Atual</span>
+                            <span id="he-current-mini" class="text-xs font-extrabold text-indigo-700 dark:text-indigo-300">30h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulador de Holerite Interativo (7 colunas) -->
+                <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-5">
+                            <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                <i data-lucide="calculator" class="w-5 h-5 text-indigo-600"></i>
+                                Simulador de Holerite & DSR
+                            </h3>
+                            <button onclick="syncHeHoursToSimulator()" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Usar total apontado (<span id="sync-he-label">30</span>h)
+                            </button>
+                        </div>
+
+                        <!-- Parâmetros Editáveis -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Salário Base (R$)</label>
+                                <input type="number" id="sim-base-salary" value="3805.36" step="0.01" oninput="calculatePayslip()" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                    <span>Qtd. Horas Extras</span>
+                                    <span id="sim-hours-display" class="text-indigo-600 dark:text-indigo-400 font-bold">30h</span>
+                                </div>
+                                <input type="range" id="sim-hours-slider" min="0" max="80" step="0.5" value="30" oninput="updateHoursFromSlider(this.value)" class="w-full accent-indigo-600 cursor-pointer mt-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Valor da Hora Extra (R$)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="sim-he-rate" value="34.00" step="0.10" oninput="calculatePayslip()" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <button type="button" onclick="setHeRate(33.50)" class="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-semibold hover:bg-slate-100 dark:hover:bg-slate-800" title="Valor anterior da planilha">33,50</button>
+                                    <button type="button" onclick="setHeRate(34.00)" class="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-semibold hover:bg-slate-100 dark:hover:bg-slate-800" title="Valor atual da planilha">34,00</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Adicional DSR (%)</label>
+                                    <input type="number" id="sim-dsr-pct" value="19" step="1" oninput="calculatePayslip()" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Descontos (R$)</label>
+                                    <input type="number" id="sim-deductions" value="1895.00" step="10" oninput="calculatePayslip()" title="INSS + Adiantamento Dia 05 + Vale" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Demonstrativo Estilo Holerite -->
+                        <div class="rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 p-4 space-y-2.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-500 dark:text-slate-400">Salário Base Mensal:</span>
+                                <span id="res-base" class="font-semibold text-slate-800 dark:text-slate-200">R$ 3.805,36</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-500 dark:text-slate-400">Total Horas Extras (<span id="res-he-qty">30</span>h × R$ <span id="res-he-rate">34,00</span>):</span>
+                                <span id="res-he-total" class="font-semibold text-emerald-600 dark:text-emerald-400">+ R$ 1.020,00</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-500 dark:text-slate-400">Reflexo DSR sobre HE (<span id="res-dsr-pct">19</span>%):</span>
+                                <span id="res-dsr-total" class="font-semibold text-emerald-600 dark:text-emerald-400">+ R$ 193,80</span>
+                            </div>
+                            <div class="flex justify-between text-xs border-t border-slate-200/70 dark:border-slate-700/70 pt-2">
+                                <span class="font-semibold text-slate-700 dark:text-slate-300">Total Bruto Proventos:</span>
+                                <span id="res-gross" class="font-bold text-slate-900 dark:text-white">R$ 5.019,16</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-500 dark:text-slate-400">Descontos (INSS / Adiant. / Outros):</span>
+                                <span id="res-deductions" class="font-semibold text-rose-600 dark:text-rose-400">- R$ 1.895,00</span>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-3 mt-1">
+                                <div>
+                                    <span class="block text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Salário Líquido Estimado</span>
+                                    <span class="text-[11px] text-slate-500">Ganho extra líquido (HE + DSR): <strong id="res-extra-gain" class="text-emerald-600 dark:text-emerald-400">R$ 1.213,80</strong></span>
+                                </div>
+                                <span id="res-net" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">R$ 3.124,16</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">Deseja adicionar o valor das Horas Extras + DSR na receita do mês ativo?</span>
+                        <button onclick="addExtraToCurrentMonth()" class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-1.5 shrink-0">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            Lançar HE + DSR na Renda
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 5: EVOLUÇÃO ANUAL (FEVEREIRO A NOVEMBRO) -->
+        <section id="evolucao-anual" class="scroll-mt-24 space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i>
+                            Evolução Financeira Anual (Fev – Nov)
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Comparativo histórico de Renda Total, Gastos Mensais e Sobra Líquida</p>
+                    </div>
+                    <div class="flex items-center gap-4 text-xs font-semibold">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500"></span> Renda</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-rose-500"></span> Gastos</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-600"></span> Sobra</span>
+                    </div>
+                </div>
+
+                <div class="relative h-72 sm:h-80 w-full">
+                    <canvas id="annualChart"></canvas>
+                </div>
+
+                <!-- Destaques de Quitação da Planilha -->
+                <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 flex items-start gap-3">
+                        <div class="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Acordo Condomínio Quitado</h4>
+                            <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">10 parcelas de R$ 610,00 finalizadas em Maio, liberando fluxo mensal.</p>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 flex items-start gap-3">
+                        <div class="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Empréstimo MP Quitado</h4>
+                            <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">5 parcelas de R$ 333,00 concluídas em Junho.</p>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-900/50 flex items-start gap-3">
+                        <div class="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-400">
+                            <i data-lucide="building-2" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Parcela Apto Unificada</h4>
+                            <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Apartamento + Condomínio consolidados em R$ 1.113,00 a partir de Setembro.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <p><strong>FinançasPro</strong> • Dados sincronizados automaticamente no armazenamento local do navegador.</p>
+            <p>Baseado fielmente na estrutura de <em>Controle_de_Gastos_Completo.xlsx</em></p>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT COMPLETO -->
+    <script>
+        // =========================================================================
+        // 1. BASE DE DADOS REAL EXTRAÍDA DA PLANILHA "Controle_de_Gastos_Completo.xlsx"
+        // =========================================================================
+        const INITIAL_EXCEL_DATA = {
+            activeMonth: 'Novembro',
+            heRecords: [
+                { id: 'he-1', date: '17/10', hours: 7, signed: true },
+                { id: 'he-2', date: '31/10', hours: 9, signed: true },
+                { id: 'he-3', date: '01/11', hours: 6, signed: true },
+                { id: 'he-4', date: '02/11', hours: 8, signed: false }
+            ],
+            months: {
+                'Fevereiro': {
+                    note: 'Início do controle anual • Rateio Fardamento e Acordo Condomínio ativos',
+                    entries: [
+                        { id: 'fev-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1490.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'fev-2', type: 'income', name: 'Aluguel Recebido', amount: 970.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'fev-3', type: 'income', name: 'Salário Dia 20 (Pagamento)', amount: 1850.00, quinzena: 2, due: 20, installment: 'Fixo', paid: true },
+                        { id: 'fev-4', type: 'income', name: 'Repasse Fardamento (Rafa/Stive/Nick/Leo)', amount: 450.00, quinzena: 2, due: 20, installment: '1/4', paid: true },
+                        { id: 'fev-5', type: 'expense', name: 'Cartão de Crédito', amount: 1950.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'fev-6', type: 'expense', name: 'Apartamento + Condomínio', amount: 1084.00, category: 'Moradia', quinzena: 1, due: 10, installment: '690+394', paid: true },
+                        { id: 'fev-7', type: 'expense', name: 'Acordo Condomínio', amount: 610.00, category: 'Empréstimos', quinzena: 2, due: 23, installment: '7/10', paid: true },
+                        { id: 'fev-8', type: 'expense', name: 'Empréstimo MP', amount: 333.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: '1/5', paid: true },
+                        { id: 'fev-9', type: 'expense', name: 'Fardamento Rateado', amount: 562.00, category: 'Outros', quinzena: 2, due: 20, installment: '1/4', paid: true },
+                        { id: 'fev-10', type: 'expense', name: 'Claro Celular', amount: 81.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Março': {
+                    note: 'Mês com IPVA/Licenciamento e parcelas de acordos',
+                    entries: [
+                        { id: 'mar-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1490.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'mar-2', type: 'income', name: 'Aluguel Recebido', amount: 970.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'mar-3', type: 'income', name: 'Salário Dia 20 (Pagamento)', amount: 1920.00, quinzena: 2, due: 20, installment: 'Fixo', paid: true },
+                        { id: 'mar-4', type: 'income', name: 'Repasse Fardamento', amount: 450.00, quinzena: 2, due: 20, installment: '2/4', paid: true },
+                        { id: 'mar-5', type: 'expense', name: 'Cartão de Crédito', amount: 2150.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'mar-6', type: 'expense', name: 'Apartamento + Condomínio', amount: 1084.00, category: 'Moradia', quinzena: 1, due: 10, installment: '690+394', paid: true },
+                        { id: 'mar-7', type: 'expense', name: 'Acordo Condomínio', amount: 610.00, category: 'Empréstimos', quinzena: 2, due: 23, installment: '8/10', paid: true },
+                        { id: 'mar-8', type: 'expense', name: 'Empréstimo MP', amount: 333.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: '2/5', paid: true },
+                        { id: 'mar-9', type: 'expense', name: 'IPVA / Licenciamento', amount: 306.00, category: 'Veículo', quinzena: 1, due: 12, installment: 'Parcela', paid: true },
+                        { id: 'mar-10', type: 'expense', name: 'Fardamento Rateado', amount: 562.00, category: 'Outros', quinzena: 2, due: 20, installment: '2/4', paid: true },
+                        { id: 'mar-11', type: 'expense', name: 'Claro Celular', amount: 81.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Abril': {
+                    note: 'Entrada de PLR (R$ 650,00) reforçando o caixa da 2ª quinzena',
+                    entries: [
+                        { id: 'abr-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1520.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'abr-2', type: 'income', name: 'Aluguel Recebido', amount: 970.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'abr-3', type: 'income', name: 'Salário Dia 20 (Pagamento)', amount: 1980.00, quinzena: 2, due: 20, installment: 'Fixo', paid: true },
+                        { id: 'abr-4', type: 'income', name: 'PLR Recebida', amount: 650.00, quinzena: 2, due: 20, installment: 'Extra', paid: true },
+                        { id: 'abr-5', type: 'income', name: 'Repasse Fardamento', amount: 450.00, quinzena: 2, due: 20, installment: '3/4', paid: true },
+                        { id: 'abr-6', type: 'expense', name: 'Cartão de Crédito', amount: 2340.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'abr-7', type: 'expense', name: 'Apartamento + Condomínio', amount: 1084.00, category: 'Moradia', quinzena: 1, due: 10, installment: '690+394', paid: true },
+                        { id: 'abr-8', type: 'expense', name: 'Acordo Condomínio', amount: 610.00, category: 'Empréstimos', quinzena: 2, due: 23, installment: '9/10', paid: true },
+                        { id: 'abr-9', type: 'expense', name: 'Empréstimo MP', amount: 333.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: '3/5', paid: true },
+                        { id: 'abr-10', type: 'expense', name: 'IPVA / Licenciamento', amount: 211.00, category: 'Veículo', quinzena: 1, due: 12, installment: 'Parcela', paid: true },
+                        { id: 'abr-11', type: 'expense', name: 'Fardamento Rateado', amount: 562.00, category: 'Outros', quinzena: 2, due: 20, installment: '3/4', paid: true },
+                        { id: 'abr-12', type: 'expense', name: 'Claro Celular', amount: 84.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Maio': {
+                    note: 'Última parcela (10/10) do Acordo do Condomínio e (4/4) do Fardamento!',
+                    entries: [
+                        { id: 'mai-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1520.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'mai-2', type: 'income', name: 'Aluguel Recebido', amount: 1020.00, quinzena: 1, due: 10, installment: 'Reajustado', paid: true },
+                        { id: 'mai-3', type: 'income', name: 'Salário Dia 20 (Pagamento)', amount: 2050.00, quinzena: 2, due: 20, installment: 'Fixo', paid: true },
+                        { id: 'mai-4', type: 'income', name: 'Trampo WiFi / Extra', amount: 400.00, quinzena: 2, due: 25, installment: 'Extra', paid: true },
+                        { id: 'mai-5', type: 'expense', name: 'Cartão de Crédito', amount: 2490.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'mai-6', type: 'expense', name: 'Apartamento + Condomínio', amount: 1084.00, category: 'Moradia', quinzena: 1, due: 10, installment: '690+394', paid: true },
+                        { id: 'mai-7', type: 'expense', name: 'Acordo Condomínio (QUITADO)', amount: 610.00, category: 'Empréstimos', quinzena: 2, due: 23, installment: '10/10', paid: true },
+                        { id: 'mai-8', type: 'expense', name: 'Empréstimo MP', amount: 333.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: '4/5', paid: true },
+                        { id: 'mai-9', type: 'expense', name: 'Fardamento Rateado (QUITADO)', amount: 562.00, category: 'Outros', quinzena: 2, due: 20, installment: '4/4', paid: true },
+                        { id: 'mai-10', type: 'expense', name: 'Claro Celular', amount: 84.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Junho': {
+                    note: 'Quitação final (5/5) do Empréstimo MP • Alívio significativo nas despesas fixas',
+                    entries: [
+                        { id: 'jun-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1520.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'jun-2', type: 'income', name: 'Aluguel Recebido', amount: 1020.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'jun-3', type: 'income', name: 'Salário Dia 20 (Pagamento)', amount: 2180.00, quinzena: 2, due: 20, installment: 'Fixo', paid: true },
+                        { id: 'jun-4', type: 'income', name: 'Reembolso Rafa / Mãe e Bina', amount: 320.00, quinzena: 2, due: 22, installment: 'Repasse', paid: true },
+                        { id: 'jun-5', type: 'expense', name: 'Cartão de Crédito', amount: 2680.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'jun-6', type: 'expense', name: 'Apartamento + Condomínio', amount: 1095.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Mensal', paid: true },
+                        { id: 'jun-7', type: 'expense', name: 'Empréstimo MP (QUITADO)', amount: 333.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: '5/5', paid: true },
+                        { id: 'jun-8', type: 'expense', name: 'Cartão Mercado Pago', amount: 245.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: true },
+                        { id: 'jun-9', type: 'expense', name: 'Luz / Energia + Internet', amount: 380.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: '300+80', paid: true },
+                        { id: 'jun-10', type: 'expense', name: 'Claro Celular', amount: 85.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Julho': {
+                    note: 'Mês de Férias (Adiantamento/Férias elevado no Dia 05) + Dissídio',
+                    entries: [
+                        { id: 'jul-1', type: 'income', name: 'Férias + Salário Dia 05', amount: 5200.00, quinzena: 1, due: 5, installment: 'Férias', paid: true },
+                        { id: 'jul-2', type: 'income', name: 'Aluguel Recebido', amount: 1054.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'jul-3', type: 'income', name: 'Saldo Salário Dia 20 + Dissídio', amount: 1810.00, quinzena: 2, due: 20, installment: 'Dissídio', paid: true },
+                        { id: 'jul-4', type: 'expense', name: 'Cartão de Crédito', amount: 3200.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'jul-5', type: 'expense', name: 'Apartamento + Condomínio', amount: 1095.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Mensal', paid: true },
+                        { id: 'jul-6', type: 'expense', name: 'Empréstimo NU', amount: 434.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: 'Parcela', paid: true },
+                        { id: 'jun-7b', type: 'expense', name: 'Cartão Mercado Pago', amount: 373.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: true },
+                        { id: 'jul-8', type: 'expense', name: 'Luz / Energia + Internet', amount: 380.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: '300+80', paid: true },
+                        { id: 'jul-9', type: 'expense', name: 'Claro Celular', amount: 88.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Agosto': {
+                    note: '34h de Horas Extras registradas • Retorno pós-férias',
+                    entries: [
+                        { id: 'ago-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1522.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'ago-2', type: 'income', name: 'Aluguel Recebido', amount: 1054.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'ago-3', type: 'income', name: 'Salário Dia 20 + 34h Extras', amount: 2680.00, quinzena: 2, due: 20, installment: 'Com HE', paid: true },
+                        { id: 'ago-4', type: 'expense', name: 'Cartão de Crédito', amount: 2540.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'ago-5', type: 'expense', name: 'Apartamento + Condomínio', amount: 1095.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Mensal', paid: true },
+                        { id: 'ago-6', type: 'expense', name: 'Empréstimo NU', amount: 371.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: 'Parcela', paid: true },
+                        { id: 'ago-7', type: 'expense', name: 'Cartão Mercado Pago', amount: 195.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: true },
+                        { id: 'ago-8', type: 'expense', name: 'Luz / Energia + Internet', amount: 380.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: '300+80', paid: true },
+                        { id: 'ago-9', type: 'expense', name: 'Claro Celular', amount: 88.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Setembro': {
+                    note: 'Unificação Apartamento + Condomínio (R$ 1.113,00) • 17h Extras',
+                    entries: [
+                        { id: 'set-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1522.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'set-2', type: 'income', name: 'Aluguel Recebido', amount: 1054.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'set-3', type: 'income', name: 'Salário Dia 20 + 17h Extras', amount: 2350.00, quinzena: 2, due: 20, installment: 'Com HE', paid: true },
+                        { id: 'set-4', type: 'income', name: 'Reembolso Tia / Família', amount: 240.00, quinzena: 2, due: 22, installment: 'Repasse', paid: true },
+                        { id: 'set-5', type: 'expense', name: 'Cartão de Crédito', amount: 2190.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'set-6', type: 'expense', name: 'Apartamento + Condomínio (Unificado)', amount: 1113.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'set-7', type: 'expense', name: 'Empréstimo NU', amount: 371.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: 'Parcela', paid: true },
+                        { id: 'set-8', type: 'expense', name: 'Cartão Mercado Pago', amount: 148.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: true },
+                        { id: 'set-9', type: 'expense', name: 'Luz / Energia + Internet', amount: 380.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: '300+80', paid: true },
+                        { id: 'set-10', type: 'expense', name: 'Claro Celular', amount: 88.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Outubro': {
+                    note: '17h Extras lançadas • Redução gradual da fatura do cartão',
+                    entries: [
+                        { id: 'out-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1522.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'out-2', type: 'income', name: 'Aluguel Recebido', amount: 1054.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'out-3', type: 'income', name: 'Salário Dia 20 + 17h Extras', amount: 2410.00, quinzena: 2, due: 20, installment: 'Com HE', paid: true },
+                        { id: 'out-4', type: 'expense', name: 'Cartão de Crédito', amount: 1980.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'out-5', type: 'expense', name: 'Apartamento + Condomínio', amount: 1113.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'out-6', type: 'expense', name: 'Empréstimo NU', amount: 371.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: 'Parcela', paid: true },
+                        { id: 'out-7', type: 'expense', name: 'Cartão Mercado Pago', amount: 115.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: true },
+                        { id: 'out-8', type: 'expense', name: 'Luz / Energia + Internet', amount: 380.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: '300+80', paid: true },
+                        { id: 'out-9', type: 'expense', name: 'Claro Celular', amount: 88.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: true }
+                    ]
+                },
+                'Novembro': {
+                    note: 'Mês Atual • 30h Extras acumuladas (17/10, 31/10, 01/11, 02/11) + 1ª Parcela 13º',
+                    entries: [
+                        { id: 'nov-1', type: 'income', name: 'Salário Dia 05 (Adiantamento)', amount: 1522.00, quinzena: 1, due: 5, installment: 'Fixo', paid: true },
+                        { id: 'nov-2', type: 'income', name: 'Aluguel Recebido', amount: 1054.00, quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'nov-3', type: 'income', name: 'Salário Dia 20 (Base Líq. + 30h HE)', amount: 2700.00, quinzena: 2, due: 20, installment: 'Previsto', paid: false },
+                        { id: 'nov-4', type: 'income', name: '1ª Parcela 13º / Adiantamento Extra', amount: 1450.00, quinzena: 2, due: 28, installment: '1/2', paid: false },
+                        { id: 'nov-5', type: 'expense', name: 'Cartão de Crédito', amount: 2080.00, category: 'Cartões', quinzena: 1, due: 5, installment: 'Fatura', paid: true },
+                        { id: 'nov-6', type: 'expense', name: 'Apartamento + Condomínio', amount: 1113.00, category: 'Moradia', quinzena: 1, due: 10, installment: 'Fixo', paid: true },
+                        { id: 'nov-7', type: 'expense', name: 'Empréstimo NU', amount: 371.00, category: 'Empréstimos', quinzena: 1, due: 15, installment: 'Parcela', paid: true },
+                        { id: 'nov-8', type: 'expense', name: 'Cartão Mercado Pago', amount: 165.00, category: 'Cartões', quinzena: 2, due: 18, installment: 'Fatura', paid: false },
+                        { id: 'nov-9', type: 'expense', name: 'Luz / Energia', amount: 300.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: 'Fixo', paid: false },
+                        { id: 'nov-10', type: 'expense', name: 'Internet Fibra', amount: 80.00, category: 'Contas Fixas', quinzena: 2, due: 20, installment: 'Fixo', paid: false },
+                        { id: 'nov-11', type: 'expense', name: 'Claro Celular', amount: 88.00, category: 'Contas Fixas', quinzena: 2, due: 28, installment: 'Fixo', paid: false }
+                    ]
+                }
+            }
+        };
+
+        // Estado da Aplicação
+        const STORAGE_KEY = 'financas_pro_excel_v1';
+        let appState = loadState();
+        let categoryChartInstance = null;
+        let annualChartInstance = null;
+        let confirmCallback = null;
+
+        // =========================================================================
+        // 2. PERSISTÊNCIA E FORMATAÇÃO
+        // =========================================================================
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.months && Object.keys(parsed.months).length > 0) {
+                        return parsed;
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao ler localStorage:', e);
+            }
+            return JSON.parse(JSON.stringify(INITIAL_EXCEL_DATA));
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            } catch (e) {
+                console.error('Erro ao salvar no localStorage:', e);
+            }
+        }
+
+        function formatBRL(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value || 0);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = type === 'success' 
+                ? 'bg-slate-900 dark:bg-slate-800 text-white border-emerald-500' 
+                : 'bg-rose-600 text-white border-rose-400';
+            const icon = type === 'success' ? 'check-circle' : 'info';
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border-l-4 shadow-xl text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0 ${colors}`;
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-4 h-4 shrink-0 ${type === 'success' ? 'text-emerald-400' : 'text-white'}"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Modal de confirmação customizado
+        function openConfirm(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            confirmCallback = onConfirm;
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        document.getElementById('confirm-cancel').addEventListener('click', () => {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmCallback = null;
+        });
+
+        document.getElementById('confirm-ok').addEventListener('click', () => {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (confirmCallback) confirmCallback();
+            confirmCallback = null;
+        });
+
+        function confirmResetData() {
+            openConfirm(
+                'Restaurar Planilha Original?',
+                'Isso apagará suas edições manuais e restaurará todos os valores originais de Fevereiro a Novembro da planilha Excel.',
+                () => {
+                    appState = JSON.parse(JSON.stringify(INITIAL_EXCEL_DATA));
+                    saveState();
+                    renderAll();
+                    showToast('Dados originais da planilha restaurados!');
+                }
+            );
+        }
+
+        // =========================================================================
+        // 3. NAVEGAÇÃO DE MESES E CÁLCULOS FINANCEIROS
+        // =========================================================================
+        function renderMonthTabs() {
+            const container = document.getElementById('month-tabs');
+            const monthNames = Object.keys(appState.months);
+            container.innerHTML = monthNames.map(month => {
+                const isActive = month === appState.activeMonth;
+                return `
+                    <button onclick="selectMonth('${month}')"
+                        class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                            isActive 
+                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25' 
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }">
+                        ${month.slice(0, 3)}
+                        <span class="hidden md:inline">${month.slice(3)}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectMonth(month) {
+            appState.activeMonth = month;
+            saveState();
+            renderAll();
+        }
+
+        function getMonthMetrics(monthName) {
+            const monthData = appState.months[monthName] || { entries: [] };
+            const entries = monthData.entries || [];
+
+            let totalIncome = 0, paidIncome = 0, incomeCount = 0;
+            let totalExpense = 0, paidExpense = 0, expenseCount = 0, paidExpenseCount = 0;
+            let q1Income = 0, q1Expense = 0;
+            let q2Income = 0, q2Expense = 0;
+            const categoryTotals = {};
+
+            entries.forEach(item => {
+                const val = Number(item.amount) || 0;
+                const q = Number(item.quinzena) || 1;
+
+                if (item.type === 'income') {
+                    totalIncome += val;
+                    incomeCount++;
+                    if (item.paid) paidIncome += val;
+                    if (q === 1) q1Income += val;
+                    else q2Income += val;
+                } else {
+                    totalExpense += val;
+                    expenseCount++;
+                    if (item.paid) {
+                        paidExpense += val;
+                        paidExpenseCount++;
+                    }
+                    if (q === 1) q1Expense += val;
+                    else q2Expense += val;
+
+                    const cat = item.category || 'Outros';
+                    categoryTotals[cat] = (categoryTotals[cat] || 0) + val;
+                }
+            });
+
+            const balance = totalIncome - totalExpense;
+            const pendingExpense = totalExpense - paidExpense;
+            const commitment = totalIncome > 0 ? Math.round((totalExpense / totalIncome) * 100) : 0;
+
+            return {
+                totalIncome, paidIncome, incomeCount,
+                totalExpense, paidExpense, pendingExpense, expenseCount, paidExpenseCount,
+                balance, commitment,
+                q1Income, q1Expense, q1Balance: q1Income - q1Expense,
+                q2Income, q2Expense, q2Balance: q2Income - q2Expense,
+                categoryTotals
+            };
+        }
+
+        function renderDashboardSummary() {
+            const monthName = appState.activeMonth;
+            const monthData = appState.months[monthName];
+            const m = getMonthMetrics(monthName);
+
+            document.getElementById('header-month-label').textContent = monthName;
+            document.getElementById('cat-month-name').textContent = monthName;
+            document.getElementById('month-note').textContent = monthData.note || 'Controle mensal ativo';
+
+            // KPIs
+            document.getElementById('kpi-income').textContent = formatBRL(m.totalIncome);
+            document.getElementById('kpi-income-paid').textContent = formatBRL(m.paidIncome);
+            document.getElementById('kpi-income-count').textContent = `${m.incomeCount} fonte(s)`;
+
+            document.getElementById('kpi-expense').textContent = formatBRL(m.totalExpense);
+            document.getElementById('kpi-expense-paid').textContent = formatBRL(m.paidExpense);
+            document.getElementById('kpi-expense-pending').textContent = formatBRL(m.pendingExpense);
+
+            const balEl = document.getElementById('kpi-balance');
+            const balStatusEl = document.getElementById('kpi-balance-status');
+            balEl.textContent = formatBRL(m.balance);
+            if (m.balance >= 0) {
+                balEl.className = 'text-2xl font-extrabold text-emerald-600 dark:text-emerald-400';
+                balStatusEl.textContent = 'Superávit previsto no mês';
+            } else {
+                balEl.className = 'text-2xl font-extrabold text-rose-600 dark:text-rose-400';
+                balStatusEl.textContent = 'Atenção: despesas superam receitas';
+            }
+
+            // Comprometimento
+            document.getElementById('kpi-commitment').textContent = `${m.commitment}%`;
+            const barEl = document.getElementById('kpi-commitment-bar');
+            const badgeEl = document.getElementById('kpi-commitment-badge');
+            barEl.style.width = `${Math.min(m.commitment, 100)}%`;
+
+            if (m.commitment <= 75) {
+                barEl.className = 'bg-emerald-500 h-full rounded-full transition-all duration-500';
+                badgeEl.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400';
+                badgeEl.textContent = 'Saudável';
+            } else if (m.commitment <= 95) {
+                barEl.className = 'bg-amber-500 h-full rounded-full transition-all duration-500';
+                badgeEl.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400';
+                badgeEl.textContent = 'Alerta';
+            } else {
+                barEl.className = 'bg-rose-500 h-full rounded-full transition-all duration-500';
+                badgeEl.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400';
+                badgeEl.textContent = 'Crítico';
+            }
+
+            // Quinzenas
+            document.getElementById('q1-income').textContent = formatBRL(m.q1Income);
+            document.getElementById('q1-expense').textContent = formatBRL(m.q1Expense);
+            const q1BalEl = document.getElementById('q1-balance');
+            q1BalEl.textContent = formatBRL(m.q1Balance);
+            q1BalEl.className = `font-extrabold text-base ${m.q1Balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
+
+            document.getElementById('q2-income').textContent = formatBRL(m.q2Income);
+            document.getElementById('q2-expense').textContent = formatBRL(m.q2Expense);
+            const q2BalEl = document.getElementById('q2-balance');
+            q2BalEl.textContent = formatBRL(m.q2Balance);
+            q2BalEl.className = `font-extrabold text-base ${m.q2Balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
+
+            // Progresso de quitação
+            const paidPct = m.expenseCount > 0 ? Math.round((m.paidExpenseCount / m.expenseCount) * 100) : 0;
+            document.getElementById('paid-progress-text').textContent = `${m.paidExpenseCount} de ${m.expenseCount} contas pagas (${paidPct}%)`;
+            document.getElementById('paid-progress-bar').style.width = `${paidPct}%`;
+        }
+
+        // =========================================================================
+        // 4. LISTA DE LANÇAMENTOS (RECEITAS E DESPESAS)
+        // =========================================================================
+        function renderEntries() {
+            const monthData = appState.months[appState.activeMonth];
+            const filterQ = document.getElementById('filter-quinzena').value;
+            const filterS = document.getElementById('filter-status').value;
+
+            const filtered = (monthData.entries || []).filter(item => {
+                if (filterQ !== 'all' && String(item.quinzena) !== filterQ) return false;
+                if (filterS === 'paid' && !item.paid) return false;
+                if (filterS === 'pending' && item.paid) return false;
+                return true;
+            });
+
+            // Ordenar por dia de vencimento
+            filtered.sort((a, b) => (Number(a.due) || 99) - (Number(b.due) || 99));
+
+            const incomes = filtered.filter(i => i.type === 'income');
+            const expenses = filtered.filter(i => i.type === 'expense');
+
+            const incomeContainer = document.getElementById('income-list');
+            const expenseContainer = document.getElementById('expense-list');
+
+            if (incomes.length === 0) {
+                incomeContainer.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Nenhuma receita encontrada neste filtro.</div>`;
+            } else {
+                incomeContainer.innerHTML = incomes.map(item => createEntryRowHTML(item)).join('');
+            }
+
+            if (expenses.length === 0) {
+                expenseContainer.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Nenhuma despesa encontrada neste filtro.</div>`;
+            } else {
+                expenseContainer.innerHTML = expenses.map(item => createEntryRowHTML(item)).join('');
+            }
+
+            lucide.createIcons();
+        }
+
+        function createEntryRowHTML(item) {
+            const isIncome = item.type === 'income';
+            const badgeStatus = item.paid
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400"><i data-lucide="check" class="w-3 h-3"></i> ${isIncome ? 'Recebido' : 'Pago'}</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-400"><i data-lucide="clock" class="w-3 h-3"></i> Pendente</span>`;
+
+            return `
+                <div class="p-4 hover:bg-slate-50/90 dark:hover:bg-slate-800/40 transition flex items-center justify-between gap-3 group">
+                    <div class="flex items-start gap-3 min-w-0">
+                        <button onclick="toggleEntryPaid('${item.id}')" title="Alternar status Pago/Pendente" class="mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            item.paid 
+                            ? 'bg-emerald-500 border-emerald-500 text-white' 
+                            : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                        }">
+                            ${item.paid ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}
+                        </button>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate ${item.paid ? 'opacity-85' : ''}">${item.name}</p>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-medium">${item.quinzena}ª Quinzena</span>
+                                ${item.due ? `<span>• Dia ${String(item.due).padStart(2, '0')}</span>` : ''}
+                                ${!isIncome && item.category ? `<span>• ${item.category}</span>` : ''}
+                                ${item.installment ? `<span class="text-indigo-600 dark:text-indigo-400 font-semibold">• ${item.installment}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="text-right">
+                            <span class="block text-sm font-extrabold ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}">
+                                ${formatBRL(item.amount)}
+                            </span>
+                            <button onclick="toggleEntryPaid('${item.id}')" class="mt-0.5">
+                                ${badgeStatus}
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                            <button onclick="editEntry('${item.id}')" title="Editar" class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/60">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteEntry('${item.id}')" title="Excluir" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleEntryPaid(id) {
+            const entries = appState.months[appState.activeMonth].entries;
+            const entry = entries.find(e => e.id === id);
+            if (entry) {
+                entry.paid = !entry.paid;
+                saveState();
+                renderAll();
+                showToast(entry.paid ? `"${entry.name}" marcado como concluído!` : `"${entry.name}" marcado como pendente.`);
+            }
+        }
+
+        function deleteEntry(id) {
+            const entries = appState.months[appState.activeMonth].entries;
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            openConfirm('Excluir Lançamento?', `Deseja remover "${entry.name}" (${formatBRL(entry.amount)}) de ${appState.activeMonth}?`, () => {
+                appState.months[appState.activeMonth].entries = entries.filter(e => e.id !== id);
+                saveState();
+                renderAll();
+                showToast('Lançamento excluído.');
+            });
+        }
+
+        // Modal de Lançamento (Criar / Editar)
+        function openEntryModal(defaultType = 'expense') {
+            document.getElementById('entry-form').reset();
+            document.getElementById('entry-id').value = '';
+            document.getElementById('modal-entry-title').innerHTML = `<i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i> <span>Novo Lançamento (${appState.activeMonth})</span>`;
+            
+            const radios = document.getElementsByName('entryType');
+            radios.forEach(r => r.checked = (r.value === defaultType));
+            toggleEntryTypeFields();
+
+            const modal = document.getElementById('entry-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function editEntry(id) {
+            const entry = appState.months[appState.activeMonth].entries.find(e => e.id === id);
+            if (!entry) return;
+
+            document.getElementById('entry-id').value = entry.id;
+            document.getElementById('modal-entry-title').innerHTML = `<i data-lucide="pencil" class="w-5 h-5 text-indigo-600"></i> <span>Editar Lançamento</span>`;
+            
+            const radios = document.getElementsByName('entryType');
+            radios.forEach(r => r.checked = (r.value === entry.type));
+            toggleEntryTypeFields();
+
+            document.getElementById('entry-name').value = entry.name;
+            document.getElementById('entry-amount').value = entry.amount;
+            document.getElementById('entry-quinzena').value = entry.quinzena || 1;
+            document.getElementById('entry-category').value = entry.category || 'Outros';
+            document.getElementById('entry-due').value = entry.due || '';
+            document.getElementById('entry-installment').value = entry.installment || '';
+            document.getElementById('entry-paid').checked = !!entry.paid;
+
+            const modal = document.getElementById('entry-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeEntryModal() {
+            const modal = document.getElementById('entry-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleEntryTypeFields() {
+            const type = document.querySelector('input[name="entryType"]:checked').value;
+            const catWrapper = document.getElementById('category-wrapper');
+            catWrapper.style.display = type === 'expense' ? 'block' : 'none';
+        }
+
+        document.getElementById('entry-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('entry-id').value;
+            const type = document.querySelector('input[name="entryType"]:checked').value;
+            const name = document.getElementById('entry-name').value.trim();
+            const amount = parseFloat(document.getElementById('entry-amount').value);
+            const quinzena = parseInt(document.getElementById('entry-quinzena').value, 10);
+            const category = document.getElementById('entry-category').value;
+            const due = parseInt(document.getElementById('entry-due').value, 10) || null;
+            const installment = document.getElementById('entry-installment').value.trim();
+            const paid = document.getElementById('entry-paid').checked;
+
+            if (!name || isNaN(amount)) return;
+
+            const entries = appState.months[appState.activeMonth].entries;
+            if (id) {
+                const idx = entries.findIndex(item => item.id === id);
+                if (idx !== -1) {
+                    entries[idx] = { ...entries[idx], type, name, amount, quinzena, category, due, installment, paid };
+                }
+                showToast('Lançamento atualizado com sucesso!');
+            } else {
+                entries.push({
+                    id: 'item-' + Date.now(),
+                    type, name, amount, quinzena, category, due, installment, paid
+                });
+                showToast('Novo lançamento adicionado!');
+            }
+
+            saveState();
+            closeEntryModal();
+            renderAll();
+        });
+
+        // Modal Novo Mês
+        function openMonthModal() {
+            const select = document.getElementById('copy-from-month');
+            select.innerHTML = Object.keys(appState.months).map(m => `<option value="${m}" ${m === appState.activeMonth ? 'selected' : ''}>${m}</option>`).join('');
+            const modal = document.getElementById('month-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeMonthModal() {
+            const modal = document.getElementById('month-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('new-month-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newName = document.getElementById('new-month-name').value.trim();
+            const copyFrom = document.getElementById('copy-from-month').value;
+            if (!newName) return;
+
+            if (appState.months[newName]) {
+                showToast('Já existe um mês com este nome.', 'error');
+                return;
+            }
+
+            const sourceEntries = appState.months[copyFrom]?.entries || [];
+            const clonedEntries = sourceEntries.map((item, idx) => ({
+                ...item,
+                id: `${newName.toLowerCase()}-${Date.now()}-${idx}`,
+                paid: false
+            }));
+
+            appState.months[newName] = {
+                note: `Planejamento mensal criado a partir de ${copyFrom}`,
+                entries: clonedEntries
+            };
+            appState.activeMonth = newName;
+            saveState();
+            closeMonthModal();
+            renderAll();
+            showToast(`Mês "${newName}" criado com sucesso!`);
+        });
+
+        // =========================================================================
+        // 5. CONTROLE DE HORAS EXTRAS (HE) & SIMULADOR DE HOLERITE
+        // =========================================================================
+        function renderHeRecords() {
+            const listEl = document.getElementById('he-list');
+            const records = appState.heRecords || [];
+            const totalHours = records.reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
+
+            document.getElementById('he-total-badge').textContent = `${totalHours}h Total`;
+            document.getElementById('he-current-mini').textContent = `${totalHours}h`;
+            document.getElementById('sync-he-label').textContent = totalHours;
+
+            if (records.length === 0) {
+                listEl.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">Nenhuma hora extra apontada.</td></tr>`;
+            } else {
+                listEl.innerHTML = records.map(r => `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                        <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">${r.date}</td>
+                        <td class="py-2.5 px-3 font-bold text-indigo-600 dark:text-indigo-400">${r.hours}h</td>
+                        <td class="py-2.5 px-3">
+                            <button onclick="toggleHeSigned('${r.id}')" class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                r.signed 
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' 
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                            }">
+                                ${r.signed ? 'Assinado' : 'Pendente'}
+                            </button>
+                        </td>
+                        <td class="py-2.5 px-3 text-right">
+                            <button onclick="deleteHeRecord('${r.id}')" class="text-slate-400 hover:text-rose-500 p-1">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        document.getElementById('he-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const date = document.getElementById('he-date').value.trim();
+            const hours = parseFloat(document.getElementById('he-hours').value);
+            if (!date || isNaN(hours) || hours <= 0) return;
+
+            appState.heRecords.push({
+                id: 'he-' + Date.now(),
+                date,
+                hours,
+                signed: false
+            });
+            document.getElementById('he-date').value = '';
+            document.getElementById('he-hours').value = '';
+            saveState();
+            renderHeRecords();
+            syncHeHoursToSimulator();
+            showToast(`${hours}h extras registradas em ${date}!`);
+        });
+
+        function toggleHeSigned(id) {
+            const rec = appState.heRecords.find(r => r.id === id);
+            if (rec) {
+                rec.signed = !rec.signed;
+                saveState();
+                renderHeRecords();
+            }
+        }
+
+        function deleteHeRecord(id) {
+            appState.heRecords = appState.heRecords.filter(r => r.id !== id);
+            saveState();
+            renderHeRecords();
+            syncHeHoursToSimulator();
+        }
+
+        function syncHeHoursToSimulator() {
+            const totalHours = (appState.heRecords || []).reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
+            document.getElementById('sim-hours-slider').value = totalHours;
+            document.getElementById('sim-hours-display').textContent = `${totalHours}h`;
+            calculatePayslip();
+        }
+
+        function updateHoursFromSlider(val) {
+            document.getElementById('sim-hours-display').textContent = `${val}h`;
+            calculatePayslip();
+        }
+
+        function setHeRate(rate) {
+            document.getElementById('sim-he-rate').value = rate.toFixed(2);
+            calculatePayslip();
+        }
+
+        function calculatePayslip() {
+            const baseSalary = parseFloat(document.getElementById('sim-base-salary').value) || 0;
+            const heQty = parseFloat(document.getElementById('sim-hours-slider').value) || 0;
+            const heRate = parseFloat(document.getElementById('sim-he-rate').value) || 0;
+            const dsrPct = parseFloat(document.getElementById('sim-dsr-pct').value) || 0;
+            const deductions = parseFloat(document.getElementById('sim-deductions').value) || 0;
+
+            const heTotal = heQty * heRate;
+            const dsrTotal = heTotal * (dsrPct / 100);
+            const extraGain = heTotal + dsrTotal;
+            const grossTotal = baseSalary + extraGain;
+            const netTotal = grossTotal - deductions;
+
+            document.getElementById('res-base').textContent = formatBRL(baseSalary);
+            document.getElementById('res-he-qty').textContent = heQty;
+            document.getElementById('res-he-rate').textContent = heRate.toFixed(2).replace('.', ',');
+            document.getElementById('res-he-total').textContent = `+ ${formatBRL(heTotal)}`;
+            document.getElementById('res-dsr-pct').textContent = dsrPct;
+            document.getElementById('res-dsr-total').textContent = `+ ${formatBRL(dsrTotal)}`;
+            document.getElementById('res-gross').textContent = formatBRL(grossTotal);
+            document.getElementById('res-deductions').textContent = `- ${formatBRL(deductions)}`;
+            document.getElementById('res-extra-gain').textContent = formatBRL(extraGain);
+            document.getElementById('res-net').textContent = formatBRL(netTotal);
+
+            return { heQty, extraGain, netTotal };
+        }
+
+        function addExtraToCurrentMonth() {
+            const { heQty, extraGain } = calculatePayslip();
+            if (extraGain <= 0) {
+                showToast('O valor extra calculado é zero.', 'error');
+                return;
+            }
+
+            appState.months[appState.activeMonth].entries.push({
+                id: 'he-income-' + Date.now(),
+                type: 'income',
+                name: `Horas Extras (${heQty}h) + DSR (19%)`,
+                amount: Number(extraGain.toFixed(2)),
+                quinzena: 2,
+                due: 20,
+                installment: 'Holerite',
+                paid: false
+            });
+
+            saveState();
+            renderAll();
+            showToast(`${formatBRL(extraGain)} lançados na receita de ${appState.activeMonth}!`);
+        }
+
+        // =========================================================================
+        // 6. GRÁFICOS INTERATIVOS (CHART.JS)
+        // =========================================================================
+        function renderCharts() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
+
+            // 1. Gráfico de Rosca: Categorias do Mês Ativo
+            const m = getMonthMetrics(appState.activeMonth);
+            const catLabels = Object.keys(m.categoryTotals);
+            const catValues = Object.values(m.categoryTotals);
+            const catColors = ['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'];
+
+            const ctxCat = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels.length ? catLabels : ['Sem gastos'],
+                    datasets: [{
+                        data: catValues.length ? catValues : [1],
+                        backgroundColor: catLabels.length ? catColors : ['#cbd5e1'],
+                        borderWidth: 2,
+                        borderColor: isDark ? '#0f172a' : '#ffffff',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '66%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: textColor,
+                                boxWidth: 10,
+                                padding: 12,
+                                font: { family: 'Inter', size: 11, weight: '600' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (!catLabels.length) return ' R$ 0,00';
+                                    return ` ${ctx.label}: ${formatBRL(ctx.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Gráfico Anual: Renda vs Gastos vs Sobra
+            const monthNames = Object.keys(appState.months);
+            const incomesData = monthNames.map(name => getMonthMetrics(name).totalIncome);
+            const expensesData = monthNames.map(name => getMonthMetrics(name).totalExpense);
+            const balanceData = monthNames.map(name => getMonthMetrics(name).balance);
+
+            const ctxAnnual = document.getElementById('annualChart').getContext('2d');
+            if (annualChartInstance) annualChartInstance.destroy();
+
+            annualChartInstance = new Chart(ctxAnnual, {
+                type: 'bar',
+                data: {
+                    labels: monthNames.map(n => n.slice(0, 3)),
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Sobra Líquida',
+                            data: balanceData,
+                            borderColor: '#4f46e5',
+                            backgroundColor: '#4f46e5',
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            tension: 0.35,
+                            order: 0
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Renda Total',
+                            data: incomesData,
+                            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                            borderRadius: 6,
+                            barPercentage: 0.65,
+                            order: 1
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Gastos Totais',
+                            data: expensesData,
+                            backgroundColor: 'rgba(244, 63, 94, 0.85)',
+                            borderRadius: 6,
+                            barPercentage: 0.65,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` ${ctx.dataset.label}: ${formatBRL(ctx.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: textColor, font: { family: 'Inter', weight: '600', size: 11 } }
+                        },
+                        y: {
+                            grid: { color: gridColor },
+                            ticks: {
+                                color: textColor,
+                                font: { family: 'Inter', size: 11 },
+                                callback: val => 'R$ ' + val.toLocaleString('pt-BR')
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // =========================================================================
+        // 7. EXPORTAÇÃO CSV E TEMA DARK/LIGHT
+        // =========================================================================
+        function exportCSV() {
+            const monthName = appState.activeMonth;
+            const entries = appState.months[monthName]?.entries || [];
+            let csv = 'Mes;Tipo;Descricao;Categoria;Quinzena;Dia;Parcela;Valor;Status\n';
+
+            entries.forEach(e => {
+                const tipo = e.type === 'income' ? 'Receita' : 'Despesa';
+                const status = e.paid ? 'Pago/Recebido' : 'Pendente';
+                const valor = Number(e.amount).toFixed(2).replace('.', ',');
+                csv += `${monthName};${tipo};"${e.name}";${e.category || '-'};${e.quinzena}a;${e.due || ''};"${e.installment || ''}";${valor};${status}\n`;
+            });
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Controle_Gastos_${monthName}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast(`Arquivo CSV de ${monthName} baixado!`);
+        }
+
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            const isDark = html.classList.contains('dark');
+            localStorage.setItem('financas_pro_theme', isDark ? 'dark' : 'light');
+            renderCharts();
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('financas_pro_theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        // =========================================================================
+        // 8. INICIALIZAÇÃO GERAL
+        // =========================================================================
+        function renderAll() {
+            renderMonthTabs();
+            renderDashboardSummary();
+            renderEntries();
+            renderHeRecords();
+            calculatePayslip();
+            renderCharts();
+            lucide.createIcons();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderAll();
+        });
+    </script>
+</body>
+</html>
